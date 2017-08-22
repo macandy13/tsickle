@@ -23,7 +23,7 @@
       "outDir": "${workspaceRoot}/built"
     },
     {
-      "name": "Run file based tests",
+      "name": "Golden tests",
       "type": "node",
       "request": "launch",
       "program": "${workspaceRoot}/node_modules/.bin/_mocha",
@@ -43,7 +43,28 @@
       "console": "internalConsole",
       "sourceMaps": true,
       "outDir": "${workspaceRoot}/built"
+    },
+    {
+      "name": "Golden tests (transformer)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceRoot}/node_modules/.bin/_mocha",
+      "args": [
+        "--colors",
+        "--timeout=0",
+        "./built/test/golden_tsickle_transformer_test.js"
+      ],
+      "cwd": "${workspaceRoot}",
+      "runtimeArgs": [
+        "--nolazy"
+      ],
+      "env": {
+        "NODE_ENV": "development",
+        "TEST_FILTER": "^file_comment$"
+      },
+      "console": "internalConsole",
+      "sourceMaps": true,
+      "outDir": "${workspaceRoot}/built"
     }
-
   ]
 }
