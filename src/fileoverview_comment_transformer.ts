@@ -16,11 +16,21 @@ function skipLeadingCommentsRecursively(n: ts.SourceFile) {
 
 export function transformFileoverviewComment(context: ts.TransformationContext) {
   return (sf: ts.SourceFile) => {
-    const comments = ts.getLeadingCommentRanges(sf.getFullText(), 0) || [];
+    // const comments = ts.getLeadingCommentRanges(sf.getFullText(), 0) || [];
+
+    // let target = sf.statements[0];
+    // if (!target || target.kind !== ts.SyntaxKind.NotEmittedStatement) {
+    //   target = ts.createNotEmittedStatement(sf);
+    //   sf = ts.updateSourceFileNode(sf, [target, ...sf.statements]);
+    // }
+    // if (!target || target.kind !== ts.SyntaxKind.NotEmittedStatement) {
+    //   throw new Error(`expected NotEmittedStatement in ${sf.fileName} statements`);
+    // }
+    const comments = ts.getSyntheticTrailingComments(sf.statements[0]) || [];
 
     let fileoverviewIdx = -1;
     for (let i = comments.length - 1; i >= 0; i--) {
-      const parsed = jsdoc.parse(sf.getFullText().substring(comments[i].pos, comments[i].end));
+      const parsed = jsdoc.parseContents(comments[i].text);
       if (parsed !== null && parsed.tags.some(t => FILEOVERVIEW_COMMENTS.has(t.tagName))) {
         fileoverviewIdx = i;
         break;
@@ -34,25 +44,28 @@ export function transformFileoverviewComment(context: ts.TransformationContext) 
     // AJD considers *any* comment mentioning @fileoverview.
     if (fileoverviewIdx === -1) {
       // No existing comment to merge with, just emit a new one.
-      const commentText = jsdoc.toString([
+      const commentText = jsdoc.getContents([
         {tagName: 'fileoverview', text: 'added by tsickle'},
         {tagName: 'suppress', type: 'checkTypes', text: 'checked by tsc'},
       ]);
-      return ts.addSyntheticLeadingComment(
-          sf, ts.SyntaxKind.MultiLineCommentTrivia, commentText, true);
+      let target = ts.createNotEmittedStatement(sf);
+      target = ts.addSyntheticTrailingComment(
+          target, ts.SyntaxKind.MultiLineCommentTrivia, commentText, true);
+      return ts.updateSourceFileNode(sf, [target, ...sf.statements]);
     }
 
     // There is an existing comment - we need to convert comments to be synthetic, and disable
     // emitting comments for all nodes that could contain them.
-    skipLeadingCommentsRecursively(sf);
+    // skipLeadingCommentsRecursively(sf);
 
-    for (const comment of comments.slice(0, fileoverviewIdx)) {
-      sf = ts.addSyntheticLeadingComment(
-          sf, comment.kind, sf.text.substring(comment.pos, comment.end), comment.hasTrailingNewLine);
-    }
+    // for (const comment of comments.slice(0, fileoverviewIdx)) {
+    //   target = ts.addSyntheticLeadingComment(
+    //       target, comment.kind, sf.getFullText().substring(comment.pos, comment.end),
+    //       comment.hasTrailingNewLine);
+    // }
 
     const comment = comments[fileoverviewIdx];
-    const parsed = jsdoc.parse(sf.getFullText().substring(comment.pos, comment.end));
+    const parsed = jsdoc.parseContents(comment.text);
     if (!parsed) throw new Error('internal error: JSDoc comment does not parse');
     const {tags} = parsed;
 
@@ -74,13 +87,16 @@ export function transformFileoverviewComment(context: ts.TransformationContext) 
         text: 'checked by tsc',
       });
     }
-    const commentText = jsdoc.toString(tags);
-    sf = ts.addSyntheticLeadingComment(sf, ts.SyntaxKind.MultiLineCommentTrivia, commentText, true);
+    const commentText = jsdoc.getContents(tags);
+    comments[fileoverviewIdx].text = commentText;
+    // target = ts.addSyntheticLeadingComment(
+    //     target, ts.SyntaxKind.MultiLineCommentTrivia, commentText, true);
 
-    for (const comment of comments.slice(0, fileoverviewIdx)) {
-      sf = ts.addSyntheticLeadingComment(
-          sf, comment.kind, sf.text.substring(comment.pos, comment.end), comment.hasTrailingNewLine);
-    }
-    return sf;
+    // for (const comment of comments.slice(fileoverviewIdx + 1)) {
+    //   target = ts.addSyntheticLeadingComment(
+    //       target, comment.kind, sf.text.substring(comment.pos, comment.end),
+    //       comment.hasTrailingNewLine);
+    // }
+    return sf; // ts.updateSourceFileNode(sf, [target, ...sf.statements]);
   }
 }
