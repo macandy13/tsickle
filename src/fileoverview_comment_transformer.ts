@@ -14,19 +14,14 @@ function skipLeadingCommentsRecursively(n: ts.SourceFile) {
   ts.forEachChild(n, skipLeadingComments);
 }
 
+/**
+ * A transformer that ensures the emitted JS file has an \@fileoverview comment that contains a
+ * \@suppress {checkTypes} annotation by either adding or updating an existing comment.
+ */
 export function transformFileoverviewComment(context: ts.TransformationContext) {
   return (sf: ts.SourceFile) => {
-    // const comments = ts.getLeadingCommentRanges(sf.getFullText(), 0) || [];
-
-    // let target = sf.statements[0];
-    // if (!target || target.kind !== ts.SyntaxKind.NotEmittedStatement) {
-    //   target = ts.createNotEmittedStatement(sf);
-    //   sf = ts.updateSourceFileNode(sf, [target, ...sf.statements]);
-    // }
-    // if (!target || target.kind !== ts.SyntaxKind.NotEmittedStatement) {
-    //   throw new Error(`expected NotEmittedStatement in ${sf.fileName} statements`);
-    // }
-    const comments = ts.getSyntheticTrailingComments(sf.statements[0]) || [];
+    let comments: ts.SynthesizedComment[] = [];
+    if (sf.statements.length) comments = ts.getSyntheticTrailingComments(sf.statements[0]) || [];
 
     let fileoverviewIdx = -1;
     for (let i = comments.length - 1; i >= 0; i--) {
@@ -54,16 +49,6 @@ export function transformFileoverviewComment(context: ts.TransformationContext) 
       return ts.updateSourceFileNode(sf, [target, ...sf.statements]);
     }
 
-    // There is an existing comment - we need to convert comments to be synthetic, and disable
-    // emitting comments for all nodes that could contain them.
-    // skipLeadingCommentsRecursively(sf);
-
-    // for (const comment of comments.slice(0, fileoverviewIdx)) {
-    //   target = ts.addSyntheticLeadingComment(
-    //       target, comment.kind, sf.getFullText().substring(comment.pos, comment.end),
-    //       comment.hasTrailingNewLine);
-    // }
-
     const comment = comments[fileoverviewIdx];
     const parsed = jsdoc.parseContents(comment.text);
     if (!parsed) throw new Error('internal error: JSDoc comment does not parse');
@@ -89,14 +74,7 @@ export function transformFileoverviewComment(context: ts.TransformationContext) 
     }
     const commentText = jsdoc.getContents(tags);
     comments[fileoverviewIdx].text = commentText;
-    // target = ts.addSyntheticLeadingComment(
-    //     target, ts.SyntaxKind.MultiLineCommentTrivia, commentText, true);
-
-    // for (const comment of comments.slice(fileoverviewIdx + 1)) {
-    //   target = ts.addSyntheticLeadingComment(
-    //       target, comment.kind, sf.text.substring(comment.pos, comment.end),
-    //       comment.hasTrailingNewLine);
-    // }
-    return sf; // ts.updateSourceFileNode(sf, [target, ...sf.statements]);
-  }
+    // sf does not need to be updated, synthesized comments are mutable.
+    return sf;
+  };
 }

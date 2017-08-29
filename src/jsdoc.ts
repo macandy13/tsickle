@@ -127,7 +127,7 @@ export function parse(comment: string): {tags: Tag[], warnings?: string[]}|null 
   // TODO(evanm): this is a pile of hacky regexes for now, because we
   // would rather use the better TypeScript implementation of JSDoc
   // parsing.  https://github.com/Microsoft/TypeScript/issues/7393
-  let match = comment.match(/^\/\*\*([\s\S]*?)\*\/$/);
+  const match = comment.match(/^\/\*\*([\s\S]*?)\*\/$/);
   if (!match) return null;
   return parseContents(match[1].trim());
 }
